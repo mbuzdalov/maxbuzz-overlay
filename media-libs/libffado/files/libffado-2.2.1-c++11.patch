@@ -1,0 +1,60 @@
+diff -urN libffado-2.2.1/SConstruct libffado-2.2.1.1/SConstruct
+--- libffado-2.2.1/SConstruct	2014-06-02 04:01:27.000000000 +0400
++++ libffado-2.2.1.1/SConstruct	2016-05-14 22:20:38.367245530 +0300
+@@ -85,7 +85,7 @@
+ ## Load the builders in config
+ buildenv=os.environ
+ 
+-env = Environment( tools=['default','scanreplace','pyuic','pyuic4','dbus','doxygen','pkgconfig'], toolpath=['admin'], ENV = buildenv, options=opts )
++env = Environment( CXXFLAGS='-std=gnu++11 ', tools=['default','scanreplace','pyuic','pyuic4','dbus','doxygen','pkgconfig'], toolpath=['admin'], ENV = buildenv, options=opts )
+ 
+ if env.has_key('COMPILE_FLAGS') and len(env['COMPILE_FLAGS']) > 0:
+     print '''
+diff -urN libffado-2.2.1/tests/test-enhanced-mixer.cpp libffado-2.2.1.1/tests/test-enhanced-mixer.cpp
+--- libffado-2.2.1/tests/test-enhanced-mixer.cpp	2008-05-29 12:24:21.000000000 +0400
++++ libffado-2.2.1.1/tests/test-enhanced-mixer.cpp	2016-05-14 22:24:45.601214553 +0300
+@@ -77,7 +77,7 @@
+         exit(0);
+     }
+ 
+-    int errno = 0;
++    errno = 0;
+     char* tail;
+     int node_id = strtol( argv[1], &tail, 0 );
+     int fb_id   = strtol( argv[2], &tail, 0 );
+diff -urN libffado-2.2.1/tests/test-mixer.cpp libffado-2.2.1.1/tests/test-mixer.cpp
+--- libffado-2.2.1/tests/test-mixer.cpp	2008-03-23 13:32:19.000000000 +0300
++++ libffado-2.2.1.1/tests/test-mixer.cpp	2016-05-14 22:26:28.957621008 +0300
+@@ -227,7 +227,7 @@
+         exit(0);
+     }
+ 
+-    int errno = 0;
++    errno = 0;
+     char* tail;
+     int port = strtol( argv[1], &tail, 0 );
+     int node_id = strtol( argv[2], &tail, 0 );
+diff -urN libffado-2.2.1/tests/test-pan.cpp libffado-2.2.1.1/tests/test-pan.cpp
+--- libffado-2.2.1/tests/test-pan.cpp	2008-09-24 01:51:42.000000000 +0400
++++ libffado-2.2.1.1/tests/test-pan.cpp	2016-05-14 22:26:22.032593750 +0300
+@@ -131,7 +131,7 @@
+         exit(0);
+     }
+ 
+-    int errno = 0;
++    errno = 0;
+     char* tail;
+     int node_id = strtol( argv[1], &tail, 0 );
+     int fb_id   = strtol( argv[2], &tail, 0 );
+diff -urN libffado-2.2.1/tests/test-volume.cpp libffado-2.2.1.1/tests/test-volume.cpp
+--- libffado-2.2.1/tests/test-volume.cpp	2008-05-06 01:29:40.000000000 +0400
++++ libffado-2.2.1.1/tests/test-volume.cpp	2016-05-14 22:26:05.375528202 +0300
+@@ -127,7 +127,7 @@
+         exit(0);
+     }
+ 
+-    int errno = 0;
++    errno = 0;
+     char* tail;
+     int node_id = strtol( argv[1], &tail, 0 );
+     int fb_id   = strtol( argv[2], &tail, 0 );
