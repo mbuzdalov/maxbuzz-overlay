@@ -62,9 +62,6 @@ DEPEND="${RDEPEND}
 
 SRC_TEST="parallel"
 
-src_prepare(){
-}
-
 src_install(){
 	perl-module_src_install
 	use doc && dodoc -r doc/*
