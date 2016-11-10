@@ -63,7 +63,6 @@ DEPEND="${RDEPEND}
 SRC_TEST="parallel"
 
 src_prepare(){
-	epatch "${FILESDIR}"/${PN}-2.4-drop-mozilla-ca.patch
 }
 
 src_install(){
