@@ -47,6 +47,12 @@ src_prepare() {
 		if [[ -d jre ]]; then
 			rm -r jre || die
 		fi
+		if [[ -d jre64 ]]; then
+			rm -r jre64 || die
+		fi
+		if [[ -d jre32 ]]; then
+			rm -r jre32 || die
+		fi
 	fi
 }
 
