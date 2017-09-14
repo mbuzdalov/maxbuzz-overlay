@@ -15,7 +15,7 @@ KEYWORDS="~amd64 ~ppc ~sparc ~x86"
 IUSE="examples"
 
 DEPEND=">=media-libs/alsa-lib-0.9
-	media-sound/jack-audio-connection-kit
+	virtual/jack
 	x11-libs/fltk:1"
 
 RESTRICT="mirror"
