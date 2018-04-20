@@ -61,13 +61,19 @@ src_install() {
 
 	insinto "${dir}"
 	doins -r *
-	fperms 755 "${dir}"/bin/{idea.sh,fsnotifier{,64},restart.py}
+    fperms 755 "${dir}"/bin/{*.sh,fsnotifier{,64},*.py}
 
-	if use custom-jdk; then
-		if [[ -d jre ]]; then
-		fperms 755 "${dir}"/jre/jre/bin/{java,jjs,keytool,orbd,pack200,policytool,rmid,rmiregistry,servertool,tnameserv,unpack200}
-		fi
-	fi
+    if use custom-jdk; then
+        if [[ -d jre ]]; then
+            fperms 755 "${dir}"/jre/bin/{java,jjs,keytool,orbd,pack200,policytool,rmid,rmiregistry,servertool,tnameserv,unpack200}
+        fi
+        if [[ -d jre32 ]]; then
+            fperms 755 "${dir}"/jre32/bin/{java,jjs,keytool,orbd,pack200,policytool,rmid,rmiregistry,servertool,tnameserv,unpack200}
+        fi
+        if [[ -d jre64 ]]; then
+            fperms 755 "${dir}"/jre64/bin/{java,jjs,keytool,orbd,pack200,policytool,rmid,rmiregistry,servertool,tnameserv,unpack200}
+        fi
+    fi
 
 	make_wrapper "${PN}" "${dir}/bin/${MY_PN}.sh"
 	newicon "bin/${MY_PN}.png" "${PN}.png"
