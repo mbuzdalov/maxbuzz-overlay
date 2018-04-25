@@ -61,7 +61,7 @@ src_install() {
 
 	insinto "${dir}"
 	doins -r *
-	fperms 755 "${dir}"/bin/{*.sh,fsnotifier{,64},*.py}
+	fperms 755 "${dir}"/bin/{fsnotifier{,64},idea.sh,format.sh,inspect.sh,printenv.py,restart.py}
 
 	if use custom-jdk; then
 		if [[ -d jre ]]; then
