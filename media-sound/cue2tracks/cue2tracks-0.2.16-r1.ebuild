@@ -7,7 +7,7 @@ EAPI=6
 
 DESCRIPTION="Tool for splitting audio CD image to tracks with cue sheet info."
 HOMEPAGE="http://code.google.com/p/cue2tracks/"
-SRC_URI="https://genome.ifmo.ru/owlcloud/index.php/s/MKuNufCqCYcP4ch -> ${P}.tar.gz"
+SRC_URI="https://genome.ifmo.ru/owlcloud/index.php/s/MKuNufCqCYcP4ch/download -> ${P}.tar.gz"
 
 LICENSE="GPL-2"
 SLOT="0"
