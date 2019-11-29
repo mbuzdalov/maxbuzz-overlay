@@ -8,7 +8,7 @@ inherit eutils desktop
 
 SLOT="0"
 PV_STRING="$(ver_cut 3-6)"
-MY_PV="$(ver_cut 1-2).3"
+MY_PV="$(ver_cut 1-2)"
 MY_PN="idea"
 #Using the most recent Jetbrains Runtime binaries available at the time of writing
 #As the exact bundled versions ( jre 11 build 159.30 and jre 8 build 1483.39 ) aren't
@@ -16,7 +16,7 @@ MY_PN="idea"
 JRE11_BASE="11_0_2"
 JRE11_VER="164"
 JRE_BASE="8u202"
-JRE_VER="1483.37"
+JRE_VER="1514.2"
 
 # distinguish settings for official stable releases and EAP-version releases
 if [[ "$(ver_cut 7)"x = "prex" ]]
