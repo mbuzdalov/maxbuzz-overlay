@@ -75,7 +75,6 @@ src_prepare() {
 			mv "${WORKDIR}/jre" ./"${JRE_DIR}"
 	fi
 	if ! use arm; then
-		rm bin/fsnotifier-arm || die
 		rm -rf lib/pty4j-native/linux/ppc64le || die
 	fi
 	eapply_user
