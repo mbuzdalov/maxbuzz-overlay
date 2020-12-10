@@ -45,6 +45,7 @@ QA_PREBUILT="opt/${PN}-${MY_PV}/*"
 
 src_unpack() {
     default_src_unpack
+    mv jbr "$S"
 }
 
 src_prepare() {
