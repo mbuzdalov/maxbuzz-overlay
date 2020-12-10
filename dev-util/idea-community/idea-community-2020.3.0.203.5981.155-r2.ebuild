@@ -44,10 +44,7 @@ S="${WORKDIR}/${MY_PN}-IC-${PV_STRING}"
 QA_PREBUILT="opt/${PN}-${MY_PV}/*"
 
 src_unpack() {
-    cd "${WORKDIR}"
-    unpack ${MY_PN}IC-${PV_STRING}.tar.gz
-    cd "${S}"
-    mkdir jre64 && cd jre64 && unpack jbr-${JRE11_BASE}-linux-x64-b${JRE11_VER}.tar.gz
+    default_src_unpack
 }
 
 src_prepare() {
@@ -56,6 +53,7 @@ src_prepare() {
 	else
 		JRE_DIR=jre
 	fi
+    mv jbr ${JRE_DIR}
 	if ! use arm; then
 		rm -rf lib/pty4j-native/linux/ppc64le || die
 	fi
