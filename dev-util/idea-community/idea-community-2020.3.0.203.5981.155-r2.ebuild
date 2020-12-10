@@ -44,7 +44,9 @@ S="${WORKDIR}/${MY_PN}-IC-${PV_STRING}"
 QA_PREBUILT="opt/${PN}-${MY_PV}/*"
 
 src_unpack() {
-    default_src_unpack
+    cd "${WORKDIR}"
+    unpack ${MY_PN}IC-${PV_STRING}.tar.gz
+    cd "${S}"
     mkdir jre64 && cd jre64 && unpack jbr-${JRE11_BASE}-linux-x64-b${JRE11_VER}.tar.gz
 }
 
