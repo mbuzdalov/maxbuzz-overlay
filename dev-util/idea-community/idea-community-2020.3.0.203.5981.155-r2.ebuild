@@ -62,7 +62,7 @@ src_install() {
 	doins -r *
 	fperms 755 "${dir}"/bin/{format.sh,idea.sh,inspect.sh,printenv.py,restart.py,fsnotifier{,64}}
     JRE_DIR=jbr
-    JRE_BINARIES="jaotc java javapackager jjs jrunscript keytool pack200 rmid rmiregistry unpack200"
+    JRE_BINARIES="jaotc java jjs jrunscript keytool pack200 rmid rmiregistry unpack200"
 	if [[ -d ${JRE_DIR} ]]; then
 		for jrebin in $JRE_BINARIES; do
 			fperms 755 "${dir}"/"${JRE_DIR}"/bin/"${jrebin}"
