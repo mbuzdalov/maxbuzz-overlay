@@ -48,12 +48,6 @@ src_unpack() {
 }
 
 src_prepare() {
-	if use amd64; then
-		JRE_DIR=jre64
-	else
-		JRE_DIR=jre
-	fi
-    mv jbr ${JRE_DIR}
 	if ! use arm; then
 		rm -rf lib/pty4j-native/linux/ppc64le || die
 	fi
@@ -66,11 +60,7 @@ src_install() {
 	insinto "${dir}"
 	doins -r *
 	fperms 755 "${dir}"/bin/{format.sh,idea.sh,inspect.sh,printenv.py,restart.py,fsnotifier{,64}}
-	if use amd64; then
-		JRE_DIR=jre64
-	else
-		JRE_DIR=jre
-	fi
+    JRE_DIR=jbr
     JRE_BINARIES="jaotc java javapackager jjs jrunscript keytool pack200 rmid rmiregistry unpack200"
 	if [[ -d ${JRE_DIR} ]]; then
 		for jrebin in $JRE_BINARIES; do
