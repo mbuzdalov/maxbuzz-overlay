@@ -31,7 +31,7 @@ fi
 DESCRIPTION="A complete toolset for web, mobile and enterprise development"
 HOMEPAGE="https://www.jetbrains.com/idea"
 
-LICENSE="Apache-2.0 jbr11? ( GPL-2 )"
+LICENSE="Apache-2.0 GPL-2"
 
 DEPEND="!dev-util/${PN}:14
 	!dev-util/${PN}:15"
@@ -71,13 +71,11 @@ src_install() {
 	else
 		JRE_DIR=jre
 	fi
-	if use jbr11 ; then
-		JRE_BINARIES="jaotc java javapackager jjs jrunscript keytool pack200 rmid rmiregistry unpack200"
-		if [[ -d ${JRE_DIR} ]]; then
-			for jrebin in $JRE_BINARIES; do
-				fperms 755 "${dir}"/"${JRE_DIR}"/bin/"${jrebin}"
-			done
-		fi
+    JRE_BINARIES="jaotc java javapackager jjs jrunscript keytool pack200 rmid rmiregistry unpack200"
+	if [[ -d ${JRE_DIR} ]]; then
+		for jrebin in $JRE_BINARIES; do
+			fperms 755 "${dir}"/"${JRE_DIR}"/bin/"${jrebin}"
+		done
 	fi
 
 	make_wrapper "${PN}" "${dir}/bin/${MY_PN}.sh"
