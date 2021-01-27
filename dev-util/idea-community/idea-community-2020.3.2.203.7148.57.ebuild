@@ -12,8 +12,8 @@ MY_PV="$(ver_cut 1-3)"
 MY_PN="idea"
 
 #Using the most recent Jetbrains Runtime binaries available at the time of writing
-JRE11_BASE="11_0_8"
-JRE11_VER="1098.1"
+JRE11_BASE="11_0_9_1"
+JRE11_VER="1275.1"
 
 # distinguish settings for official stable releases and EAP-version releases
 if [[ "$(ver_cut 7)"x = "prex" ]]
