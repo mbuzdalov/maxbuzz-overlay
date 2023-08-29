@@ -3,7 +3,7 @@
 
 # Currently is a copy of the same ebuild from the powerman's overlay.
 
-EAPI=6
+EAPI=8
 
 DESCRIPTION="Tool for splitting audio CD image to tracks with cue sheet info."
 HOMEPAGE="http://code.google.com/p/cue2tracks/"

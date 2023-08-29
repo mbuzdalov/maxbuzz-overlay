@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # Slightly modified by MaxBuzz to depend on virtual/jack
 
-EAPI=6
+EAPI=8
 
 inherit autotools
 

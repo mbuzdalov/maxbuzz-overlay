@@ -1,4 +1,4 @@
-EAPI=7
+EAPI=8
 
 DESCRIPTION="Virtual for dependencies needed for compiling ArduPilot"
 SLOT="0"
