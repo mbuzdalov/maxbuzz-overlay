@@ -48,6 +48,7 @@ RDEPEND="${CDEPEND}"
 
 PATCHES=(
 	"${FILESDIR}/libffado-2.4.7-fix-config-load-crash.patch"
+	"${FILESDIR}/libffado-2.4.8-fix-python-3-12.patch"
 )
 
 myescons() {
