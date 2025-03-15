@@ -1,6 +1,6 @@
 # Copyright 1999-2017 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# Slightly modified by MaxBuzz to depend on virtual/jack
+# Slightly modified by MaxBuzz to depend on virtual/jack and to fix includes
 
 EAPI=8
 
@@ -21,7 +21,8 @@ RDEPEND="
 "
 DEPEND="${RDEPEND}"
 
-PATCHES=( "${FILESDIR}"/${PN}-0.7.2-ldflags.patch )
+PATCHES=( "${FILESDIR}"/${PN}-0.7.2-ldflags.patch
+          "${FILESDIR}/"${PN}-0.7.3-file-chooser.patch )
 
 src_prepare() {
 	default
