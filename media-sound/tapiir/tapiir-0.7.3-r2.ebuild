@@ -1,6 +1,6 @@
 # Copyright 1999-2017 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# Slightly modified by MaxBuzz to depend on virtual/jack and to fix includes
+# Slightly modified by MaxBuzz to depend on virtual/jack, to fix includes and to relocate the tarball
 
 EAPI=8
 
@@ -8,7 +8,7 @@ inherit autotools
 
 DESCRIPTION="A flexible audio effects processor, inspired by classical tape delay systems"
 HOMEPAGE="http://www.resorama.com/maarten/tapiir/"
-SRC_URI="http://www.resorama.com/maarten/files/tapiir-0.7.3.tgz"
+SRC_URI="https://mbuzdalov.net/distfiles/tapiir-0.7.3.tgz"
 
 LICENSE="GPL-2"
 SLOT="0"
