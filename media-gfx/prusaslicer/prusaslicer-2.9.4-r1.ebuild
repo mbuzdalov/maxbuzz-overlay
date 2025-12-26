@@ -78,16 +78,16 @@ src_prepare() {
 		eapply "${FILESDIR}/prusaslicer-2.8.1-opencascade-7.8.0.patch"
 	fi
 
-    if ! use webkit; then
-        eapply "${FILESDIR}/prusaslicer-2.9.4-no-webkit.patch"
-    fi
-
 	sed -i -e 's/PrusaSlicer-${SLIC3R_VERSION}+UNKNOWN/PrusaSlicer-${SLIC3R_VERSION}+Gentoo/g' version.inc || die
 
 	sed -i -e 's/find_package(OpenCASCADE 7.6.[0-9] REQUIRED)/find_package(OpenCASCADE REQUIRED)/g' \
 		src/occt_wrapper/CMakeLists.txt || die
 
 	cmake_src_prepare
+
+	if ! use webkit; then
+		eapply "${FILESDIR}/prusaslicer-2.9.4-no-webkit.patch"
+	fi
 }
 
 src_configure() {
