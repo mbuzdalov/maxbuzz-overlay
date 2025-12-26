@@ -1,0 +1,1815 @@
+diff '--color=auto' -ru 01-virtual-overloads/src/CMakeLists.txt 02-webkit-optional/src/CMakeLists.txt
+--- 01-virtual-overloads/src/CMakeLists.txt	2025-12-25 22:19:43.847227191 +0000
++++ 02-webkit-optional/src/CMakeLists.txt	2025-12-26 04:42:14.940148632 +0000
+@@ -40,7 +40,7 @@
+     if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+         set (wxWidgets_CONFIG_OPTIONS "--toolkit=gtk${SLIC3R_GTK}")
+     endif ()
+-    find_package(wxWidgets 3.2 MODULE REQUIRED COMPONENTS base core adv html gl webview)
++    find_package(wxWidgets 3.2 MODULE REQUIRED COMPONENTS base core adv html gl)
+ 
+     include(${wxWidgets_USE_FILE})
+ 
+diff '--color=auto' -ru 01-virtual-overloads/src/slic3r/CMakeLists.txt 02-webkit-optional/src/slic3r/CMakeLists.txt
+--- 01-virtual-overloads/src/slic3r/CMakeLists.txt	2025-12-25 22:19:43.835670463 +0000
++++ 02-webkit-optional/src/slic3r/CMakeLists.txt	2025-12-26 04:38:00.759761332 +0000
+@@ -35,7 +35,6 @@
+     GUI/ConnectRequestHandler.hpp
+     GUI/WebView.cpp
+     GUI/WebView.hpp
+-    GUI/WebViewPlatformUtils.hpp
+     GUI/SysInfoDialog.cpp
+     GUI/SysInfoDialog.hpp
+     GUI/KBShortcutsDialog.cpp
+@@ -401,33 +400,6 @@
+     find_package(OpenSSL REQUIRED)
+ endif()
+ 
+-if (APPLE)
+-    list(APPEND SLIC3R_GUI_SOURCES
+-            Utils/RetinaHelperImpl.mm
+-            Utils/MacDarkMode.mm
+-            Utils/MacUtils.mm
+-            Utils/WifiScannerMac.h
+-            Utils/WifiScannerMac.mm
+-            GUI/RemovableDriveManagerMM.mm
+-            GUI/RemovableDriveManagerMM.h
+-            GUI/Mouse3DHandlerMac.mm
+-            GUI/InstanceCheckMac.mm
+-            GUI/InstanceCheckMac.h
+-            GUI/WebViewPlatformUtilsMac.mm
+-
+-    )
+-    FIND_LIBRARY(DISKARBITRATION_LIBRARY DiskArbitration)
+-    FIND_LIBRARY(COREWLAN_LIBRARY CoreWLAN)
+-elseif (WIN32)
+-    list(APPEND SLIC3R_GUI_SOURCES
+-            GUI/WebViewPlatformUtilsWin32.cpp
+-    )
+-else() # Linux
+-    list(APPEND SLIC3R_GUI_SOURCES
+-            GUI/WebViewPlatformUtilsLinux.cpp
+-    )
+-endif ()
+-
+ add_library(libslic3r_gui STATIC ${SLIC3R_GUI_SOURCES})
+ 
+ foreach(_source IN ITEMS ${SLIC3R_GUI_SOURCES})
+@@ -486,10 +458,8 @@
+ # link these libraries.
+ if (UNIX AND NOT APPLE)
+     find_package(GTK${SLIC3R_GTK} REQUIRED)
+-    find_package(PkgConfig REQUIRED)
+-
+-    pkg_search_module(WEBKIT2GTK REQUIRED IMPORTED_TARGET webkit2gtk-4.1)
+-    target_link_libraries(libslic3r_gui PUBLIC ${GTK${SLIC3R_GTK}_LIBRARIES} fontconfig PkgConfig::WEBKIT2GTK)
++    target_link_libraries(libslic3r_gui PUBLIC ${GTK${SLIC3R_GTK}_LIBRARIES} fontconfig)
++    target_include_directories(libslic3r_gui PUBLIC ${GTK${SLIC3R_GTK}_INCLUDE_DIRS})
+ endif ()
+ 
+ # Add a definition so that we can tell we are compiling slic3r.
+diff '--color=auto' -ru 01-virtual-overloads/src/slic3r/GUI/ConfigWizardWebViewPage.cpp 02-webkit-optional/src/slic3r/GUI/ConfigWizardWebViewPage.cpp
+--- 01-virtual-overloads/src/slic3r/GUI/ConfigWizardWebViewPage.cpp	2025-12-25 22:19:43.836298370 +0000
++++ 02-webkit-optional/src/slic3r/GUI/ConfigWizardWebViewPage.cpp	2025-12-26 04:12:18.380812282 +0000
+@@ -7,9 +7,6 @@
+ #include "slic3r/GUI/I18N.hpp"
+ #include "format.hpp"
+ #include "Event.hpp"
+-#include "slic3r/GUI/WebViewPlatformUtils.hpp"
+-
+-#include <wx/webview.h>
+ 
+ wxDEFINE_EVENT(EVT_OPEN_EXTERNAL_LOGIN_WIZARD, wxCommandEvent);
+ 
+@@ -27,35 +24,9 @@
+ 
+     // Create the webview
+     m_browser_sizer = new wxBoxSizer(wxHORIZONTAL);
+-    m_browser = WebView::webview_new();
+-    if (!m_browser) {
+-        // TRN Config wizard page with a log in page.
+-        wxStaticText* fail_text = new wxStaticText(this, wxID_ANY, _L("Failed to load a web browser. Logging in is not possible in the moment."));
+-        append(fail_text);
+-        return;
+-    }
+-    WebView::webview_create(m_browser, this, p_user_account->generate_login_redirect_url(), {"ExternalApp"});
+-    
+-    if (logged) {
+-        // TRN Config wizard page with a log in web.
+-        m_text = new wxStaticText(this, wxID_ANY, format_wxstr(_L("You are logged as %1%."), p_user_account->get_username()));       
+-    } else {
+-        // TRN Config wizard page with a log in web. first line of text.
+-        m_text = new wxStaticText(this, wxID_ANY, _L("Log in to control your printers remotely through the built-in Connect in PrusaSlicer."));
+-        // TRN Config wizard page with a log in web. second line of text.
+-    }
+-    append(m_text);
+-    m_browser_sizer->Add(m_browser, 1, wxEXPAND);
+-    append(m_browser_sizer, 1, wxEXPAND);
+-
+-    m_browser_sizer->Show(!logged);
+-    Layout();
+-
+-    // Connect the webview events
+-    Bind(wxEVT_WEBVIEW_ERROR, &ConfigWizardWebViewPage::on_error, this, m_browser->GetId());
+-    Bind(wxEVT_WEBVIEW_NAVIGATING, &ConfigWizardWebViewPage::on_navigation_request, this, m_browser->GetId());
+-    Bind(wxEVT_IDLE, &ConfigWizardWebViewPage::on_idle, this);
+-    Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, &ConfigWizardWebViewPage::on_script_message, this, m_browser->GetId());
++    // TRN Config wizard page with a log in page.
++    wxStaticText* fail_text = new wxStaticText(this, wxID_ANY, _L("Failed to load a web browser. Logging in is not possible in the moment."));
++    append(fail_text);
+ }
+ 
+ bool ConfigWizardWebViewPage::login_changed()
+@@ -73,37 +44,8 @@
+     return logged;
+ }
+ 
+-void ConfigWizardWebViewPage::on_error(wxWebViewEvent &evt) 
+-{
+-#define WX_ERROR_CASE(type) \
+-case type: \
+-    category = #type; \
+-    break;
+-
+-    wxString category;
+-    switch (evt.GetInt())
+-    {
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_CONNECTION);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_CERTIFICATE);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_AUTH);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_SECURITY);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_NOT_FOUND);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_REQUEST);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_USER_CANCELLED);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_OTHER);
+-    }
+-
+-    BOOST_LOG_TRIVIAL(error) << "ConfigWizardWebViewPage error: " << category;
+-    load_error_page();
+-}
+-
+ void ConfigWizardWebViewPage::load_error_page() {
+-    if (!m_browser)
+-        return;
+-    if (m_vetoed)
+-        return;
+-    m_browser->Stop();
+-    m_load_error_page = true;
++    return;
+ }
+ 
+ constexpr bool is_linux =
+@@ -114,57 +56,8 @@
+ #endif
+ 
+ void ConfigWizardWebViewPage::on_idle(wxIdleEvent &WXUNUSED(evt)) {
+-    if (!m_browser)
+-        return;
+-    if (m_browser->IsBusy()) {
+-        if constexpr (!is_linux) { 
+-            wxSetCursor(wxCURSOR_ARROWWAIT);
+-        }
+-    } else {
+-        if constexpr (!is_linux) { 
+-            wxSetCursor(wxNullCursor);
+-        }
+-
+-        if (!m_vetoed && m_load_error_page) {
+-            m_load_error_page = false;
+-            m_browser->LoadURL(GUI::format_wxstr(
+-                "file://%1%/web/other_error.html",
+-                boost::filesystem::path(resources_dir()).generic_string()
+-            ));
+-        }
+-    }
+-}
+-
+-
+-void ConfigWizardWebViewPage::on_navigation_request(wxWebViewEvent &evt) 
+-{
+-    wxString url = evt.GetURL();
+-    if (url.starts_with(L"prusaslicer")) {
+-        delete_cookies(m_browser, Utils::ServiceConfig::instance().account_url());
+-        delete_cookies(m_browser, "https://accounts.google.com");
+-        delete_cookies(m_browser, "https://appleid.apple.com");
+-        delete_cookies(m_browser, "https://facebook.com");
+-        evt.Veto();
+-        m_vetoed = true;
+-        wxPostEvent(wxGetApp().plater(), Event<std::string>(EVT_LOGIN_VIA_WIZARD, into_u8(url)));	
+-    } else if (url.Find("accounts.google.com") != wxNOT_FOUND 
+-        || url.Find("appleid.apple.com") != wxNOT_FOUND 
+-        || url.Find("facebook.com") != wxNOT_FOUND) 
+-    {
+-        auto& sc = Utils::ServiceConfig::instance();
+-        if (!m_evt_sent && !url.starts_with(GUI::from_u8(sc.account_url()))) {
+-            wxCommandEvent evt(EVT_OPEN_EXTERNAL_LOGIN_WIZARD);
+-            evt.SetString(url);
+-            wxPostEvent(wxGetApp().plater(), evt);
+-            m_evt_sent = true;
+-        }
+-    }
++    return;
+ }
+ 
+-void ConfigWizardWebViewPage::on_script_message(wxWebViewEvent& evt)
+-{
+-    // only reaload button on erro page
+-    m_browser->LoadURL(p_user_account->generate_login_redirect_url());
+-}
+ 
+-}} // namespace Slic3r::GUI
+\ No newline at end of file
++}} // namespace Slic3r::GUI
+diff '--color=auto' -ru 01-virtual-overloads/src/slic3r/GUI/ConfigWizardWebViewPage.hpp 02-webkit-optional/src/slic3r/GUI/ConfigWizardWebViewPage.hpp
+--- 01-virtual-overloads/src/slic3r/GUI/ConfigWizardWebViewPage.hpp	2025-12-25 22:19:43.836298370 +0000
++++ 02-webkit-optional/src/slic3r/GUI/ConfigWizardWebViewPage.hpp	2025-12-26 04:11:22.706646713 +0000
+@@ -4,9 +4,6 @@
+ #include "ConfigWizard_private.hpp"
+ #include <wx/event.h>
+ 
+-class wxWebView;
+-class wxWebViewEvent;
+-
+ wxDECLARE_EVENT(EVT_OPEN_EXTERNAL_LOGIN_WIZARD, wxCommandEvent);
+ 
+ namespace Slic3r { 
+@@ -50,16 +47,12 @@
+     ConfigWizardWebViewPage( ConfigWizard *parent);
+     virtual ~ConfigWizardWebViewPage() {}
+ 
+-    void on_error(wxWebViewEvent &evt);
+-    void on_navigation_request(wxWebViewEvent &evt);
+     void on_idle(wxIdleEvent &evt);
+-    void on_script_message(wxWebViewEvent& evt);
+     void load_error_page();
+     // returns true if logged in - wizard needs to update repos
+     bool login_changed();
+ 
+ private:
+-    wxWebView *m_browser{nullptr};
+     UserAccount *p_user_account{nullptr};
+     wxBoxSizer *m_browser_sizer{nullptr};
+     wxStaticText *m_text{nullptr};
+@@ -69,4 +62,4 @@
+ };
+ 
+ }} // namespace Slic3r::GUI
+-#endif
+\ No newline at end of file
++#endif
+diff '--color=auto' -ru 01-virtual-overloads/src/slic3r/GUI/WebView.cpp 02-webkit-optional/src/slic3r/GUI/WebView.cpp
+--- 01-virtual-overloads/src/slic3r/GUI/WebView.cpp	2025-12-25 22:19:43.837900558 +0000
++++ 02-webkit-optional/src/slic3r/GUI/WebView.cpp	2025-12-26 04:32:55.891689288 +0000
+@@ -6,55 +6,6 @@
+ #include "libslic3r/Platform.hpp"
+ 
+ #include <wx/uri.h>
+-#include <wx/webview.h>
+ 
+ #include <boost/log/trivial.hpp>
+ 
+-wxWebView* WebView::webview_new()
+-{
+-#if wxUSE_WEBVIEW_EDGE
+-    bool backend_available = wxWebView::IsBackendAvailable(wxWebViewBackendEdge);
+-#else
+-    bool backend_available = wxWebView::IsBackendAvailable(wxWebViewBackendWebKit);
+-#endif
+-
+-    wxWebView* webView = nullptr;
+-    if (backend_available)
+-        webView = wxWebView::New();
+-    if (!webView)
+-        BOOST_LOG_TRIVIAL(error) << "Failed to create wxWebView object.";
+-    return webView;
+-}
+-void WebView::webview_create(wxWebView* webView, wxWindow *parent, const wxString& url, const std::vector<std::string>& message_handlers)
+-{
+-    assert(webView);
+-    wxString correct_url = url.empty() ? wxString("") : wxURI(url).BuildURI();
+-    wxString user_agent = Slic3r::GUI::format_wxstr("%1%/%2% (%3%)",SLIC3R_APP_FULL_NAME, SLIC3R_VERSION, Slic3r::platform_to_string(Slic3r::platform()));
+-#ifdef __WIN32__
+-    webView->SetUserAgent(user_agent);
+-    webView->Create(parent, wxID_ANY, correct_url, wxDefaultPosition, wxDefaultSize, wxNO_BORDER);
+-    //We register the wxfs:// protocol for testing purposes
+-    //webView->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewArchiveHandler("wxfs")));
+-    //And the memory: file system
+-    //webView->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewFSHandler("memory")));
+-#else
+-    // With WKWebView handlers need to be registered before creation
+-    //webView->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewArchiveHandler("wxfs")));
+-    // And the memory: file system
+-    //webView->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewFSHandler("memory")));
+-    webView->Create(parent, wxID_ANY, correct_url, wxDefaultPosition, wxDefaultSize);
+-    webView->SetUserAgent(user_agent);
+-#endif
+-#ifndef __WIN32__
+-    Slic3r::GUI::wxGetApp().CallAfter([message_handlers, webView] {
+-#endif
+-    for (const std::string& handler : message_handlers) {
+-        if (!webView->AddScriptMessageHandler(Slic3r::GUI::from_u8(handler))) {
+-            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "Could not add script message handler " << handler;
+-        }
+-    }
+-#ifndef __WIN32__
+-    });
+-#endif
+-    webView->EnableContextMenu(false);
+-}
+\ No newline at end of file
+diff '--color=auto' -ru 01-virtual-overloads/src/slic3r/GUI/WebView.hpp 02-webkit-optional/src/slic3r/GUI/WebView.hpp
+--- 01-virtual-overloads/src/slic3r/GUI/WebView.hpp	2025-12-25 22:19:43.837900558 +0000
++++ 02-webkit-optional/src/slic3r/GUI/WebView.hpp	2025-12-26 04:32:33.668293489 +0000
+@@ -4,14 +4,8 @@
+ #include <vector>
+ #include <string>
+ 
+-class wxWebView;
+-class wxWindow;
+-class wxString;
+-
+ namespace WebView
+ {
+-    wxWebView* webview_new();
+-    void       webview_create(wxWebView* webview, wxWindow *parent, const wxString& url, const std::vector<std::string>& message_handlers);     
+ };
+ 
+ #endif // !slic3r_GUI_WebView_hpp_
+diff '--color=auto' -ru 01-virtual-overloads/src/slic3r/GUI/WebViewDialog.cpp 02-webkit-optional/src/slic3r/GUI/WebViewDialog.cpp
+--- 01-virtual-overloads/src/slic3r/GUI/WebViewDialog.cpp	2025-12-25 22:19:43.836298370 +0000
++++ 02-webkit-optional/src/slic3r/GUI/WebViewDialog.cpp	2025-12-26 04:03:05.152646615 +0000
+@@ -7,7 +7,6 @@
+ #include "slic3r/GUI/UserAccount.hpp"
+ #include "slic3r/GUI/format.hpp"
+ #include "slic3r/GUI/WebView.hpp"
+-#include "slic3r/GUI/WebViewPlatformUtils.hpp"
+ #include "slic3r/Utils/ServiceConfig.hpp"
+ 
+ #include "slic3r/GUI/MsgDialog.hpp"
+@@ -15,7 +14,6 @@
+ 
+ #include <libslic3r/PresetBundle.hpp> // IWYU pragma: keep
+ 
+-#include <wx/webview.h>
+ #include <wx/display.h>
+ 
+ #include <boost/log/trivial.hpp>
+@@ -73,75 +71,11 @@
+     SetSizerAndFit(topsizer);
+ 
+     // Create the webview
+-    m_browser = WebView::webview_new();
+-    if (!m_browser) {
+-        wxStaticText* text = new wxStaticText(this, wxID_ANY, _L("Failed to load a web browser."));
+-        topsizer->Add(text, 0, wxALIGN_LEFT | wxBOTTOM, 10);
+-        return;
+-    }
+-    WebView::webview_create(m_browser, this, url, m_script_message_hadler_names);
+-    
+-    if (Utils::ServiceConfig::instance().webdev_enabled()) {
+-        m_browser->EnableContextMenu();
+-        m_browser->EnableAccessToDevTools();
+-    }
+-    
+-
+-    topsizer->Add(m_browser, wxSizerFlags().Expand().Proportion(1));
+-
+-#ifdef DEBUG_URL_PANEL
+-    // Create the Tools menu
+-    m_tools_menu = new wxMenu();
+-    wxMenuItem* viewSource = m_tools_menu->Append(wxID_ANY, "View Source");
+-    wxMenuItem* viewText = m_tools_menu->Append(wxID_ANY, "View Text");
+-    m_tools_menu->AppendSeparator();
+-
+-    wxMenu* script_menu = new wxMenu;
+-
+-    m_script_custom = script_menu->Append(wxID_ANY, "Custom script");
+-    m_tools_menu->AppendSubMenu(script_menu, "Run Script");
+-    wxMenuItem* addUserScript = m_tools_menu->Append(wxID_ANY, "Add user script");
+-    wxMenuItem* setCustomUserAgent = m_tools_menu->Append(wxID_ANY, "Set custom user agent");
+-
+-    m_context_menu = m_tools_menu->AppendCheckItem(wxID_ANY, "Enable Context Menu");
+-    m_dev_tools = m_tools_menu->AppendCheckItem(wxID_ANY, "Enable Dev Tools");
+-
+-#endif
+-    
+-    Bind(wxEVT_SHOW, &WebViewDialog::on_show, this);
+-    Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, &WebViewDialog::on_script_message, this, m_browser->GetId());
+-    
+-    // Connect the webview events
+-    Bind(wxEVT_WEBVIEW_ERROR, &WebViewDialog::on_error, this, m_browser->GetId());
+-    //Connect the idle events
+-    Bind(wxEVT_IDLE, &WebViewDialog::on_idle, this);
+-#ifdef DEBUG_URL_PANEL
+-    // Connect the button events
+-    Bind(wxEVT_BUTTON, &WebViewDialog::on_back_button, this, m_button_back->GetId());
+-    Bind(wxEVT_BUTTON, &WebViewDialog::on_forward_button, this, m_button_forward->GetId());
+-    Bind(wxEVT_BUTTON, &WebViewDialog::on_stop_button, this, m_button_stop->GetId());
+-    Bind(wxEVT_BUTTON, &WebViewDialog::on_reload_button, this, m_button_reload->GetId());
+-    Bind(wxEVT_BUTTON, &WebViewDialog::on_tools_clicked, this, m_button_tools->GetId());
+-    Bind(wxEVT_TEXT_ENTER, &WebViewDialog::on_url, this, m_url->GetId());
+-    
+-    // Connect the menu events
+-    Bind(wxEVT_MENU, &WebViewDialog::on_view_source_request, this, viewSource->GetId());
+-    Bind(wxEVT_MENU, &WebViewDialog::on_view_text_request, this, viewText->GetId());
+-    Bind(wxEVT_MENU, &WebViewDialog::On_enable_context_menu, this, m_context_menu->GetId());
+-    Bind(wxEVT_MENU, &WebViewDialog::On_enable_dev_tools, this, m_dev_tools->GetId());
+-
+-    Bind(wxEVT_MENU, &WebViewDialog::on_run_script_custom, this, m_script_custom->GetId());
+-    Bind(wxEVT_MENU, &WebViewDialog::on_add_user_script, this, addUserScript->GetId());
+-#endif
+-    Bind(wxEVT_WEBVIEW_NAVIGATING, &WebViewDialog::on_navigation_request, this, m_browser->GetId());
+-    Bind(wxEVT_WEBVIEW_LOADED, &WebViewDialog::on_loaded, this, m_browser->GetId());
+-
+-    Bind(wxEVT_CLOSE_WINDOW, ([this](wxCloseEvent& evt) { EndModal(wxID_CANCEL); }));
+-
+-#ifdef DEBUG_URL_PANEL
+-    m_url->SetLabelText(url);
+-#endif
++    wxStaticText* text = new wxStaticText(this, wxID_ANY, _L("Failed to load a web browser."));
++    topsizer->Add(text, 0, wxALIGN_LEFT | wxBOTTOM, 10);
++    return;
+ }
++
+ WebViewDialog::~WebViewDialog()
+ {
+ }
+@@ -155,24 +89,7 @@
+ 
+ void WebViewDialog::on_idle(wxIdleEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-    if (m_browser->IsBusy()) {
+-       if constexpr (!is_linux) { 
+-            wxSetCursor(wxCURSOR_ARROWWAIT);
+-        }
+-    } else {
+-        if constexpr (!is_linux) { 
+-            wxSetCursor(wxNullCursor);
+-        }
+-        if (m_load_error_page) {
+-            m_load_error_page = false;
+-            m_browser->LoadURL(GUI::format_wxstr("file://%1%/web/error_no_reload.html", boost::filesystem::path(resources_dir()).generic_string()));
+-        }
+-    }
+-#ifdef DEBUG_URL_PANEL
+-    m_button_stop->Enable(m_browser->IsBusy());
+-#endif
++    return;
+ }
+ 
+ /**
+@@ -180,12 +97,7 @@
+     */
+ void WebViewDialog::on_url(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-#ifdef DEBUG_URL_PANEL
+-    m_browser->LoadURL(m_url->GetValue());
+-    m_browser->SetFocus();
+-#endif
++    return;
+ }
+ 
+ /**
+@@ -193,9 +105,7 @@
+     */
+ void WebViewDialog::on_back_button(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-    m_browser->GoBack();
++    return;
+ }
+ 
+ /**
+@@ -203,9 +113,7 @@
+     */
+ void WebViewDialog::on_forward_button(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-    m_browser->GoForward();
++    return;
+ }
+ 
+ /**
+@@ -213,9 +121,7 @@
+     */
+ void WebViewDialog::on_stop_button(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-    m_browser->Stop();
++    return;
+ }
+ 
+ /**
+@@ -223,37 +129,16 @@
+     */
+ void WebViewDialog::on_reload_button(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-    m_browser->Reload();
++    return;
+ }
+ 
+-void WebViewDialog::on_navigation_request(wxWebViewEvent &evt)
+-{
+-    BOOST_LOG_TRIVIAL(debug) << "WebViewDialog::on_navigation_request " << evt.GetURL();
+-}
+-
+-void WebViewDialog::on_loaded(wxWebViewEvent &evt)
+-{
+-    BOOST_LOG_TRIVIAL(debug) << "WebViewDialog::on_loaded " << evt.GetURL();
+-}
+-
+-
+-void WebViewDialog::on_script_message(wxWebViewEvent& evt)
+-{
+-    BOOST_LOG_TRIVIAL(error) << "Unhandled script message: " << evt.GetString();
+-}
+ 
+ /**
+     * Invoked when user selects the "View Source" menu item
+     */
+ void WebViewDialog::on_view_source_request(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    SourceViewDialog dlg(this, m_browser->GetPageSource());
+-    dlg.ShowModal();
++    return;
+ }
+ 
+ /**
+@@ -261,23 +146,7 @@
+     */
+ void WebViewDialog::on_view_text_request(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    wxDialog textViewDialog(this, wxID_ANY, "Page Text",
+-        wxDefaultPosition, wxSize(700, 500),
+-        wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+-
+-    wxTextCtrl* text = new wxTextCtrl(this, wxID_ANY, m_browser->GetPageText(),
+-        wxDefaultPosition, wxDefaultSize,
+-        wxTE_MULTILINE |
+-        wxTE_RICH |
+-        wxTE_READONLY);
+-
+-    wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+-    sizer->Add(text, 1, wxEXPAND);
+-    SetSizer(sizer);
+-    textViewDialog.ShowModal();
++    return;
+ }
+ 
+ /**
+@@ -285,16 +154,7 @@
+     */
+ void WebViewDialog::on_tools_clicked(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-#ifdef DEBUG_URL_PANEL
+-    m_context_menu->Check(m_browser->IsContextMenuEnabled());
+-    m_dev_tools->Check(m_browser->IsAccessToDevToolsEnabled());
+-
+-    wxPoint position = ScreenToClient(wxGetMousePosition());
+-    PopupMenu(m_tools_menu, position.x, position.y);
+-#endif
++    return;
+ }
+ 
+ 
+@@ -330,125 +190,50 @@
+ 
+     const wxString& javascript = dialog.GetValue();
+     BOOST_LOG_TRIVIAL(debug) << "RunScript " << javascript <<"\n";
+-    if (!m_browser->AddUserScript(javascript))
+-        wxLogError("Could not add user script");
++    wxLogError("Could not add user script");
+ }
+ 
+ void WebViewDialog::on_set_custom_user_agent(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    wxString customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 13_1_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.1 Mobile/15E148 Safari/604.1";
+-    wxTextEntryDialog dialog
+-    (
+-        this,
+-        "Enter the custom user agent string you would like to use.",
+-        wxGetTextFromUserPromptStr,
+-        customUserAgent,
+-        wxOK | wxCANCEL | wxCENTRE
+-    );
+-    if (dialog.ShowModal() != wxID_OK)
+-        return;
+-
+-    if (!m_browser->SetUserAgent(customUserAgent))
+-        wxLogError("Could not set custom user agent");
++    return;
+ }
+ 
+ void WebViewDialog::on_clear_selection(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->ClearSelection();
++    return;
+ }
+ 
+ void WebViewDialog::on_delete_selection(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->DeleteSelection();
++    return;
+ }
+ 
+ void WebViewDialog::on_select_all(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->SelectAll();
++    return;
+ }
+ 
+ void WebViewDialog::On_enable_context_menu(wxCommandEvent& evt)
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->EnableContextMenu(evt.IsChecked());
++    return;
+ }
+ void WebViewDialog::On_enable_dev_tools(wxCommandEvent& evt)
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->EnableAccessToDevTools(evt.IsChecked());
+-}
+-
+-/**
+-    * Callback invoked when a loading error occurs
+-    */
+-void WebViewDialog::on_error(wxWebViewEvent& evt)
+-{
+-#define WX_ERROR_CASE(type) \
+-case type: \
+-    category = #type; \
+-    break;
+-
+-    wxString category;
+-    switch (evt.GetInt())
+-    {
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_CONNECTION);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_CERTIFICATE);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_AUTH);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_SECURITY);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_NOT_FOUND);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_REQUEST);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_USER_CANCELLED);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_OTHER);
+-    }
+-
+-    BOOST_LOG_TRIVIAL(error) << "WebViewDialog error: " << category;
+-    load_error_page();
++    return;
+ }
+ 
+ void WebViewDialog::load_error_page()
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->Stop();
+-    m_load_error_page = true;
++    return;
+ }
+ 
+ void WebViewDialog::run_script(const wxString& javascript)
+ {
+-    if (!m_browser)
+-        return;
+-    // Remember the script we run in any case, so the next time the user opens
+-    // the "Run Script" dialog box, it is shown there for convenient updating.
+-    m_javascript = javascript;
+-    BOOST_LOG_TRIVIAL(debug) << "RunScript " << javascript << "\n";
+-    m_browser->RunScriptAsync(javascript);
++    return;
+ }
+ 
+ void WebViewDialog::EndModal(int retCode)
+ {
+-    if (m_browser) {
+-        for (const std::string& handler : m_script_message_hadler_names) {
+-            m_browser->RemoveScriptMessageHandler(GUI::into_u8(handler));
+-        }
+-    }
+-    
+     wxDialog::EndModal(retCode);
+ }
+ 
+@@ -489,10 +274,6 @@
+     }
+     */
+ }
+-void PrinterPickWebViewDialog::on_script_message(wxWebViewEvent& evt)
+-{
+-    handle_message(into_u8(evt.GetString()));
+-}
+ 
+ void PrinterPickWebViewDialog::on_connect_action_select_printer(const std::string& message_data)
+ {
+@@ -630,10 +411,7 @@
+ 
+ void PrinterPickWebViewDialog::on_reload_event(const std::string& message_data)
+ {
+-    if (!m_browser) {
+-        return;
+-    }
+-    m_browser->LoadURL(m_default_url);
++    return;
+ }
+ 
+ 
+@@ -660,11 +438,6 @@
+     Refresh();
+ }
+ 
+-void PrintablesConnectUploadDialog::on_script_message(wxWebViewEvent& evt)
+-{
+-    handle_message(into_u8(evt.GetString()));
+-}
+-
+ void PrintablesConnectUploadDialog::on_connect_action_select_printer(const std::string& message_data)
+ {
+     // SELECT_PRINTER request is not defined for PrintablesConnectUploadDialog
+@@ -683,10 +456,7 @@
+ 
+ void PrintablesConnectUploadDialog::on_reload_event(const std::string& message_data)
+ {
+-    if (!m_browser) {
+-        return;
+-    }
+-    m_browser->LoadURL(m_default_url);
++    return;
+ }
+ 
+ void PrintablesConnectUploadDialog::on_connect_action_close_dialog(const std::string& message_data)
+@@ -706,33 +476,6 @@
+     });
+     Centre();
+ }
+-void LoginWebViewDialog::on_navigation_request(wxWebViewEvent &evt)
+-{
+-    wxString url = evt.GetURL();
+-    if (url.starts_with(L"prusaslicer")) {
+-        m_waiting_for_counters = true;
+-        m_atomic_counter = 0;
+-        m_counter_to_match = 4;
+-        delete_cookies_with_counter(m_browser, Utils::ServiceConfig::instance().account_url(), m_atomic_counter);
+-        delete_cookies_with_counter(m_browser, "https://accounts.google.com", m_atomic_counter);
+-        delete_cookies_with_counter(m_browser, "https://appleid.apple.com", m_atomic_counter);
+-        delete_cookies_with_counter(m_browser, "https://facebook.com", m_atomic_counter);
+-        evt.Veto();
+-        m_ret_val = into_u8(url);
+-        m_force_quit_timer.Start(2000, wxTIMER_ONE_SHOT);
+-        // End modal is moved to on_idle        
+-    } else if (url.Find(L"accounts.google.com") != wxNOT_FOUND
+-        || url.Find(L"appleid.apple.com") != wxNOT_FOUND
+-        || url.Find(L"facebook.com") != wxNOT_FOUND) {         
+-        auto& sc = Utils::ServiceConfig::instance();
+-        if (!m_evt_sent && !url.starts_with(GUI::from_u8(sc.account_url()))) {
+-            wxCommandEvent* evt = new wxCommandEvent(EVT_OPEN_EXTERNAL_LOGIN);
+-            evt->SetString(url);
+-            p_evt_handler->QueueEvent(evt);
+-            m_evt_sent = true;
+-        }
+-    }
+-}
+ 
+ void LoginWebViewDialog::on_dpi_changed(const wxRect &suggested_rect)
+ {
+@@ -744,32 +487,7 @@
+ 
+ void LoginWebViewDialog::on_idle(wxIdleEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-    if (m_browser->IsBusy()) {
+-       if constexpr (!is_linux) { 
+-            wxSetCursor(wxCURSOR_ARROWWAIT);
+-        }
+-    } else {
+-        if constexpr (!is_linux) { 
+-            wxSetCursor(wxNullCursor);
+-        }
+-        if (m_load_error_page) {
+-            m_load_error_page = false;
+-            m_browser->LoadURL(GUI::format_wxstr("file://%1%/web/error_no_reload.html", boost::filesystem::path(resources_dir()).generic_string()));
+-        }
+-        if (m_waiting_for_counters && m_atomic_counter == m_counter_to_match)
+-        {
+-            EndModal(wxID_OK);
+-        }
+-        if (m_force_quit)
+-        {
+-            EndModal(wxID_OK);
+-        }
+-    }
+-#ifdef DEBUG_URL_PANEL
+-    m_button_stop->Enable(m_browser->IsBusy());
+-#endif
++    return;
+ }
+ 
+ } // GUI
+diff '--color=auto' -ru 01-virtual-overloads/src/slic3r/GUI/WebViewDialog.hpp 02-webkit-optional/src/slic3r/GUI/WebViewDialog.hpp
+--- 01-virtual-overloads/src/slic3r/GUI/WebViewDialog.hpp	2025-12-25 22:19:43.836298370 +0000
++++ 02-webkit-optional/src/slic3r/GUI/WebViewDialog.hpp	2025-12-26 04:02:30.545213072 +0000
+@@ -15,9 +15,6 @@
+ 
+ #include <atomic>
+ 
+-class wxWebView;
+-class wxWebViewEvent;
+-
+ wxDECLARE_EVENT(EVT_OPEN_EXTERNAL_LOGIN, wxCommandEvent);
+ 
+ namespace Slic3r {
+@@ -30,7 +27,6 @@
+     virtual ~WebViewDialog();
+ 
+     virtual void on_show(wxShowEvent& evt) {};
+-    virtual void on_script_message(wxWebViewEvent& evt);
+ 
+     virtual void on_idle(wxIdleEvent& evt);
+     void on_url(wxCommandEvent& evt);
+@@ -42,7 +38,6 @@
+     void on_view_source_request(wxCommandEvent& evt);
+     void on_view_text_request(wxCommandEvent& evt);
+     void on_tools_clicked(wxCommandEvent& evt);
+-    void on_error(wxWebViewEvent& evt);
+ 
+     void on_run_script_custom(wxCommandEvent& evt);
+     void on_add_user_script(wxCommandEvent& evt);
+@@ -53,8 +48,6 @@
+     void On_enable_context_menu(wxCommandEvent& evt);
+     void On_enable_dev_tools(wxCommandEvent& evt);
+     
+-    virtual void on_navigation_request(wxWebViewEvent &evt);
+-    virtual void on_loaded(wxWebViewEvent &evt);
+ 
+     void run_script(const wxString& javascript);
+    
+@@ -62,7 +55,6 @@
+ 
+     virtual void EndModal(int retCode) wxOVERRIDE;
+ protected:
+-    wxWebView* m_browser {nullptr};
+     std::string m_loading_html;
+ 
+     bool m_load_error_page{ false };
+@@ -97,7 +89,6 @@
+ public:
+     PrinterPickWebViewDialog(wxWindow* parent, std::string& ret_val, bool multiple_beds);
+     void on_show(wxShowEvent& evt) override;
+-    void on_script_message(wxWebViewEvent& evt) override;
+ protected:
+     void on_connect_action_select_printer(const std::string& message_data) override;
+     void on_connect_action_print(const std::string& message_data) override;
+@@ -117,7 +108,6 @@
+ {
+ public:
+     PrintablesConnectUploadDialog(wxWindow* parent, const std::string url);
+-    void on_script_message(wxWebViewEvent& evt) override;
+ protected:
+     void on_dpi_changed(const wxRect &suggested_rect) override;
+ 
+@@ -133,7 +123,6 @@
+ {
+ public:
+     LoginWebViewDialog(wxWindow *parent, std::string &ret_val, const wxString& url, wxEvtHandler* evt_handler);
+-    void on_navigation_request(wxWebViewEvent &evt) override;
+     void on_dpi_changed(const wxRect &suggested_rect) override;
+     void on_idle(wxIdleEvent& evt) override;
+ private:
+diff '--color=auto' -ru 01-virtual-overloads/src/slic3r/GUI/WebViewPanel.cpp 02-webkit-optional/src/slic3r/GUI/WebViewPanel.cpp
+--- 01-virtual-overloads/src/slic3r/GUI/WebViewPanel.cpp	2025-12-25 22:19:43.836298370 +0000
++++ 02-webkit-optional/src/slic3r/GUI/WebViewPanel.cpp	2025-12-26 04:07:42.846555962 +0000
+@@ -7,7 +7,6 @@
+ #include "slic3r/GUI/UserAccount.hpp"
+ #include "slic3r/GUI/format.hpp"
+ #include "slic3r/GUI/WebView.hpp"
+-#include "slic3r/GUI/WebViewPlatformUtils.hpp"
+ #include "slic3r/GUI/MsgDialog.hpp"
+ #include "slic3r/GUI/Field.hpp"
+ #include "slic3r/Utils/Http.hpp"
+@@ -16,7 +15,6 @@
+ 
+ #include <libslic3r/PresetBundle.hpp> // IWYU pragma: keep
+ 
+-#include <wx/webview.h>
+ #include <wx/url.h>
+ #include <curl/curl.h>
+ #include <boost/log/trivial.hpp>
+@@ -46,30 +44,13 @@
+ 
+ void WebViewPanel::destroy_browser()
+ {
+-    if (!m_browser || m_do_late_webview_create) {
+-        return;
+-    }
+-    topsizer->Detach(m_browser);
+-    m_browser->Destroy();
+-    m_browser = nullptr;
++    return;
+ }
+ 
+ 
+ void WebViewPanel::load_url(const wxString& url)
+ {
+-    if (!m_browser)
+-        return;
+-
+-    this->on_page_will_load();
+-
+-    this->Show();
+-    this->Raise();
+-#ifdef DEBUG_URL_PANEL
+-    m_url->SetLabelText(url);
+-#endif
+-    wxString correct_url = url.empty() ? wxString("") : wxURI(url).BuildURI();
+-    m_browser->LoadURL(correct_url);
+-    m_browser->SetFocus();
++    return;
+ }
+ 
+ 
+@@ -175,27 +156,8 @@
+ void WebViewPanel::late_create()
+ {
+     m_do_late_webview_create = false;
+-    m_browser = WebView::webview_new();
+-   
+-    if (!m_browser) {
+-        wxStaticText* text = new wxStaticText(this, wxID_ANY, _L("Failed to load a web browser."));
+-        topsizer->Add(text, 0, wxALIGN_LEFT | wxBOTTOM, 10);
+-        return;
+-    }
+-    WebView::webview_create(m_browser,this, GUI::format_wxstr("file://%1%/web/%2%.html", boost::filesystem::path(resources_dir()).generic_string(), m_loading_html), m_script_message_hadler_names);
+- 
+-    if (Utils::ServiceConfig::instance().webdev_enabled()) {
+-        m_browser->EnableContextMenu();
+-        m_browser->EnableAccessToDevTools();
+-    }
+-    topsizer->Add(m_browser, wxSizerFlags().Expand().Proportion(1));
+-
+-    // Connect the webview events
+-    Bind(wxEVT_WEBVIEW_ERROR, &WebViewPanel::on_error, this, m_browser->GetId());
+-    Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, &WebViewPanel::on_script_message, this, m_browser->GetId());
+-    Bind(wxEVT_WEBVIEW_NAVIGATING, &WebViewPanel::on_navigation_request, this, m_browser->GetId());
+-    Bind(wxEVT_WEBVIEW_LOADED, &WebViewPanel::on_loaded, this, m_browser->GetId());
+-    Layout();
++    wxStaticText* text = new wxStaticText(this, wxID_ANY, _L("Failed to load a web browser."));
++    topsizer->Add(text, 0, wxALIGN_LEFT | wxBOTTOM, 10);
+ }
+ 
+ void WebViewPanel::load_default_url_delayed()
+@@ -206,12 +168,7 @@
+ 
+ void WebViewPanel::load_error_page()
+ {
+-    if (!m_browser || m_do_late_webview_create) {
+-        return;
+-    }
+-
+-    m_browser->Stop();
+-    m_load_error_page = true;    
++    return;
+ }
+ 
+ void WebViewPanel::on_show(wxShowEvent& evt)
+@@ -241,59 +198,7 @@
+ 
+ void WebViewPanel::on_idle(wxIdleEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser || m_do_late_webview_create)
+-        return;
+-
+-    // The busy cursor on webview is switched off on Linux.
+-    // Because m_browser->IsBusy() is almost always true on Printables / Connect.
+-#ifndef __linux__
+-    if (m_shown) {
+-        if (m_browser->IsBusy()) {
+-            wxSetCursor(wxCURSOR_ARROWWAIT);
+-        } else {
+-            wxSetCursor(wxNullCursor);
+-        }
+-    }
+-#endif // !__linux__
+-
+-    if (m_shown && m_load_error_page && !m_browser->IsBusy()) {
+-        m_load_error_page = false;
+-        if (m_load_default_url_on_next_error) {
+-            m_load_default_url_on_next_error = false;
+-            load_default_url();
+-        } else { 
+-            load_url(GUI::format_wxstr("file://%1%/web/%2%.html", boost::filesystem::path(resources_dir()).generic_string(), m_error_html));
+-            // This is a fix of broken message handling after error.
+-            // F.e. if there is an error but we do AddUserScript & Reload, the handling will break.
+-            // So we just reset the handler here.
+-            if (!m_script_message_hadler_names.empty()) {
+-                m_browser->RemoveScriptMessageHandler(Slic3r::GUI::from_u8(m_script_message_hadler_names.front()));
+-                m_browser->AddScriptMessageHandler(Slic3r::GUI::from_u8(m_script_message_hadler_names.front()));
+-            } 
+-        }
+-    }
+-    
+-#ifdef DEBUG_URL_PANEL
+-    m_button_stop->Enable(m_browser->IsBusy());
+-#endif
+-}
+-
+-void WebViewPanel::on_loaded(wxWebViewEvent& evt)
+-{
+-    if (evt.GetURL().IsEmpty())
+-        return;
+-
+-    if (evt.GetURL().StartsWith(m_default_url)) {
+-        define_css();
+-    } else {
+-        m_styles_defined = false;
+-    }
+-
+-    m_load_default_url_on_next_error = false;
+-    if (evt.GetURL().Find(GUI::format_wxstr("/web/%1%.html", m_loading_html)) != wxNOT_FOUND && m_load_default_url) {
+-        m_load_default_url = false;
+-        load_default_url();
+-    }
++    return;
+ }
+ 
+ /**
+@@ -301,12 +206,7 @@
+     */
+ void WebViewPanel::on_url(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-#ifdef DEBUG_URL_PANEL
+-    m_browser->LoadURL(m_url->GetValue());
+-    m_browser->SetFocus();
+-#endif
++    return;
+ }
+ 
+ /**
+@@ -314,11 +214,7 @@
+     */
+ void WebViewPanel::on_back_button(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-    if (!m_browser->CanGoBack())
+-        return;
+-    m_browser->GoBack();
++    return;
+ }
+ 
+ /**
+@@ -326,11 +222,7 @@
+     */
+ void WebViewPanel::on_forward_button(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-    if (!m_browser->CanGoForward())
+-        return;
+-    m_browser->GoForward();
++    return;
+ }
+ 
+ /**
+@@ -338,9 +230,7 @@
+     */
+ void WebViewPanel::on_stop_button(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-    m_browser->Stop();
++    return;
+ }
+ 
+ /**
+@@ -348,18 +238,7 @@
+     */
+ void WebViewPanel::on_reload_button(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-    m_browser->Reload();
+-}
+-
+-void WebViewPanel::on_script_message(wxWebViewEvent& evt)
+-{
+-    BOOST_LOG_TRIVIAL(error) << "unhandled script message: " << evt.GetString();
+-}
+-
+-void WebViewPanel::on_navigation_request(wxWebViewEvent &evt) 
+-{
++    return;
+ }
+ 
+ void WebViewPanel::on_page_will_load()
+@@ -371,11 +250,7 @@
+     */
+ void WebViewPanel::on_view_source_request(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    SourceViewDialog dlg(this, m_browser->GetPageSource());
+-    dlg.ShowModal();
++    return;
+ }
+ 
+ /**
+@@ -383,23 +258,7 @@
+     */
+ void WebViewPanel::on_view_text_request(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    wxDialog textViewDialog(this, wxID_ANY, "Page Text",
+-        wxDefaultPosition, wxSize(700, 500),
+-        wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+-
+-    wxTextCtrl* text = new wxTextCtrl(this, wxID_ANY, m_browser->GetPageText(),
+-        wxDefaultPosition, wxDefaultSize,
+-        wxTE_MULTILINE |
+-        wxTE_RICH |
+-        wxTE_READONLY);
+-
+-    wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+-    sizer->Add(text, 1, wxEXPAND);
+-    SetSizer(sizer);
+-    textViewDialog.ShowModal();
++    return;
+ }
+ 
+ /**
+@@ -407,27 +266,12 @@
+     */
+ void WebViewPanel::on_tools_clicked(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-#ifdef DEBUG_URL_PANEL
+-    m_context_menu->Check(m_browser->IsContextMenuEnabled());
+-    m_dev_tools->Check(m_browser->IsAccessToDevToolsEnabled());
+-
+-    wxPoint position = ScreenToClient(wxGetMousePosition());
+-    PopupMenu(m_tools_menu, position.x, position.y);
+-#endif
++    return;
+ }
+ 
+ void WebViewPanel::run_script(const wxString& javascript)
+ {
+-    if (!m_browser || !m_shown)
+-        return;
+-    // Remember the script we run in any case, so the next time the user opens
+-    // the "Run Script" dialog box, it is shown there for convenient updating.
+-    m_javascript = javascript;
+-    BOOST_LOG_TRIVIAL(trace) << "RunScript " << javascript << "\n";
+-    m_browser->RunScriptAsync(javascript);
++    return;
+ }
+ 
+ 
+@@ -449,144 +293,46 @@
+ 
+ void WebViewPanel::on_add_user_script(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser) {
+-        return;
+-    }
+-    wxString userScript = "window.wx_test_var = 'wxWidgets webview sample';";
+-    wxTextEntryDialog dialog
+-    (
+-        this,
+-        "Enter the JavaScript code to run as the initialization script that runs before any script in the HTML document.",
+-        wxGetTextFromUserPromptStr,
+-        userScript,
+-        wxOK | wxCANCEL | wxCENTRE | wxTE_MULTILINE
+-    );
+-    if (dialog.ShowModal() != wxID_OK)
+-        return;
+-
+-    const wxString& javascript = dialog.GetValue();
+-    BOOST_LOG_TRIVIAL(debug) << "RunScript " << javascript << "\n";
+-    if (!m_browser->AddUserScript(javascript))
+-        wxLogError("Could not add user script");
++    return;
+ }
+ 
+ void WebViewPanel::on_set_custom_user_agent(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    wxString customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 13_1_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.1 Mobile/15E148 Safari/604.1";
+-    wxTextEntryDialog dialog
+-    (
+-        this,
+-        "Enter the custom user agent string you would like to use.",
+-        wxGetTextFromUserPromptStr,
+-        customUserAgent,
+-        wxOK | wxCANCEL | wxCENTRE
+-    );
+-    if (dialog.ShowModal() != wxID_OK)
+-        return;
+-
+-    if (!m_browser->SetUserAgent(customUserAgent))
+-        wxLogError("Could not set custom user agent");
++    return;
+ }
+ 
+ void WebViewPanel::on_clear_selection(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->ClearSelection();
++    return;
+ }
+ 
+ void WebViewPanel::on_delete_selection(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->DeleteSelection();
++    return;
+ }
+ 
+ void WebViewPanel::on_select_all(wxCommandEvent& WXUNUSED(evt))
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->SelectAll();
++    return;
+ }
+ 
+ void WebViewPanel::On_enable_context_menu(wxCommandEvent& evt)
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->EnableContextMenu(evt.IsChecked());
++    return;
+ }
+ void WebViewPanel::On_enable_dev_tools(wxCommandEvent& evt)
+ {
+-    if (!m_browser)
+-        return;
+-
+-    m_browser->EnableAccessToDevTools(evt.IsChecked());
+-}
+-
+-/**
+-    * Callback invoked when a loading error occurs
+-    */
+-void WebViewPanel::on_error(wxWebViewEvent& evt)
+-{
+-#define WX_ERROR_CASE(type) \
+-case type: \
+-    category = #type; \
+-    break;
+-
+-    wxString category;
+-    switch (evt.GetInt())
+-    {
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_CONNECTION);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_CERTIFICATE);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_AUTH);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_SECURITY);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_NOT_FOUND);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_REQUEST);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_USER_CANCELLED);
+-        WX_ERROR_CASE(wxWEBVIEW_NAV_ERR_OTHER);
+-    }
+-
+-    BOOST_LOG_TRIVIAL(error) << this <<" WebViewPanel error: " << category << " url: " << evt.GetURL();
+-    load_error_page();
+-#ifdef DEBUG_URL_PANEL
+-    m_info->ShowMessage(wxString("An error occurred loading ") + evt.GetURL() + "\n" +
+-        "'" + category + "'", wxICON_ERROR);
+-#endif
++    return;
+ }
+ 
+ void WebViewPanel::do_reload()
+ {
+-    if (!m_browser) {
+-        return;
+-    }   
+-    // IsBusy on Linux very often returns true due to loading about:blank after loading requested url.
+-#ifndef __linux__
+-    if (m_browser->IsBusy()) {
+-        return;
+-    }
+-#endif
+-    const wxString current_url = m_browser->GetCurrentURL();
+-    if (current_url.StartsWith(m_default_url)) {
+-        m_browser->Reload();
+-        return;
+-    }
+-    load_default_url();
++    return;
+ }
+ 
+ void WebViewPanel::load_default_url()
+ {
+-     if (!m_browser || m_do_late_webview_create) {
+-        return;
+-    }
+-    m_styles_defined = false;
+-    load_url(m_default_url);
++    return;
+ }
+ 
+ void WebViewPanel::sys_color_changed()
+@@ -630,34 +376,14 @@
+ void ConnectWebViewPanel::late_create()
+ {
+     WebViewPanel::late_create();
+-    if (!m_browser) {
+-        return;
+-    }
+-    
+-    // This code used to be inside plater->Bind(EVT_UA_ID_USER_SUCCESS, &ConnectWebViewPanel::on_user_token, this)
+-    auto access_token = wxGetApp().plater()->get_user_account()->get_access_token();
+-    assert(!access_token.empty());
+-
+-    wxString javascript = get_login_script(true);
+-    BOOST_LOG_TRIVIAL(debug) << "RunScript " << javascript << "\n";
+-    m_browser->RunScriptAsync(javascript);
+-    resend_config();
++    return;
+ }
+ 
+ void ConnectWebViewPanel::on_user_token(UserAccountSuccessEvent& e)
+ {
+     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__;
+     e.Skip();
+-    if (!m_browser) {
+-        return;
+-    }
+-    auto access_token = wxGetApp().plater()->get_user_account()->get_access_token();
+-    assert(!access_token.empty());
+-
+-    wxString javascript = get_login_script(true);
+-    BOOST_LOG_TRIVIAL(debug) << "RunScript " << javascript << "\n";
+-    m_browser->RunScriptAsync(javascript);
+-    resend_config();
++    return;
+ }
+ 
+ ConnectWebViewPanel::~ConnectWebViewPanel()
+@@ -814,55 +540,13 @@
+ 
+ void ConnectWebViewPanel::on_page_will_load()
+ {
+-    if (!m_browser) {
+-        return;
+-    }
+-    BOOST_LOG_TRIVIAL(debug) << __FUNCTION__;
+-    auto javascript = get_login_script(false);
+-    BOOST_LOG_TRIVIAL(debug) << "RunScript " << javascript << "\n";
+-    m_browser->AddUserScript(javascript);
++    return;
+ }
+ 
+ void ConnectWebViewPanel::on_user_logged_out(UserAccountSuccessEvent& e)
+ {
+     e.Skip();
+-    if (!m_browser)
+-        return;
+-    // clear token from session storage
+-    m_browser->RunScriptAsync(get_logout_script());
+-}
+-
+-void ConnectWebViewPanel::on_script_message(wxWebViewEvent& evt)
+-{
+-    BOOST_LOG_TRIVIAL(debug) << "received message from Prusa Connect FE: " << evt.GetString();
+-    handle_message(into_u8(evt.GetString()));
+-}
+-void ConnectWebViewPanel::on_navigation_request(wxWebViewEvent &evt) 
+-{
+-#ifdef DEBUG_URL_PANEL
+-    m_url->SetValue(evt.GetURL());
+-#endif
+-    BOOST_LOG_TRIVIAL(debug) << "Navigation requested to: " << into_u8(evt.GetURL());
+-
+-    // we need to do this to redefine css when reload is hit
+-    if (evt.GetURL().StartsWith(m_default_url) && evt.GetURL() == m_browser->GetCurrentURL()) {
+-        m_styles_defined = false;
+-    }
+-
+-    if (evt.GetURL() == m_default_url) {
+-        m_reached_default_url = true;
+-        return;
+-    }
+-    if (evt.GetURL() == (GUI::format_wxstr("file:///%1%/web/connection_failed.html", boost::filesystem::path(resources_dir()).generic_string()))) {
+-        return;
+-    }
+-    if (m_reached_default_url && !evt.GetURL().StartsWith(m_default_url)) {
+-        BOOST_LOG_TRIVIAL(info) << evt.GetURL() <<  " does not start with default url. Vetoing.";
+-        evt.Veto();
+-    } else if (m_reached_default_url && evt.GetURL().Find(GUI::format_wxstr("/web/%1%.html", m_loading_html)) != wxNOT_FOUND) {
+-        // Do not allow back button to loading screen
+-        evt.Veto();
+-    }
++    return;
+ }
+ 
+ void ConnectWebViewPanel::on_connect_action_error(const std::string &message_data)
+@@ -909,26 +593,7 @@
+ 
+ void ConnectWebViewPanel::logout()
+ {
+-    if (!m_browser || m_do_late_webview_create) {
+-        return;
+-    }
+-    wxString script = L"window._prusaConnect_v2.logout()";
+-    run_script(script);
+-
+-    Plater* plater = wxGetApp().plater();
+-    auto javascript = wxString::Format(
+-                     R"(
+-            console.log('Preparing logout');
+-            window.fetch('/slicer/logout', {method: 'POST', headers: {Authorization: 'Bearer %s'}})
+-                .then(function (resp){
+-                    console.log('Logout resp', resp);
+-                    resp.text().then(function (json) { console.log('Logout resp body', json) });
+-                });
+-        )",
+-                     plater->get_user_account()->get_access_token()
+-    );
+-    BOOST_LOG_TRIVIAL(debug) << "RunScript " << javascript << "\n";
+-    m_browser->RunScript(javascript);
++    return;
+ }
+ 
+ void ConnectWebViewPanel::sys_color_changed()
+@@ -990,54 +655,6 @@
+     m_events["appMinimize"] = std::bind(&WebViewPanel::on_app_minimize_event, this, std::placeholders::_1);
+ }
+ 
+-void PrinterWebViewPanel::on_navigation_request(wxWebViewEvent &evt)
+-{
+-    const wxString url = evt.GetURL();
+-    if (url.StartsWith(m_default_url)) {
+-        m_reached_default_url = true;
+-        if (url == m_browser->GetCurrentURL()) {
+-            // we need to do this to redefine css when reload is hit
+-            m_styles_defined = false;
+-        }
+-
+-        if ( !m_api_key_sent) {
+-            if (!m_usr.empty() && !m_psk.empty()) {
+-                send_credentials();
+-            }
+-        }
+-    } else if (m_reached_default_url && evt.GetURL().Find(GUI::format_wxstr("/web/%1%.html", m_loading_html)) != wxNOT_FOUND) {
+-        // Do not allow back button to loading screen
+-        evt.Veto();
+-    }
+-}
+-
+-void PrinterWebViewPanel::on_loaded(wxWebViewEvent& evt)
+-{
+-    if (evt.GetURL().IsEmpty())
+-        return;
+-
+-    if (evt.GetURL().StartsWith(m_default_url)) {
+-        define_css();
+-    } else {
+-        m_styles_defined = false;
+-    }
+-
+-    m_load_default_url_on_next_error = false;
+-    if (evt.GetURL().Find(GUI::format_wxstr("/web/%1%.html", m_loading_html)) != wxNOT_FOUND && m_load_default_url) {
+-        m_load_default_url = false;
+-        load_default_url();
+-        return;
+-    }
+-    if (!m_api_key.empty()) {
+-        send_api_key();
+-    }
+-}
+-void PrinterWebViewPanel::on_script_message(wxWebViewEvent& evt)
+-{
+-    BOOST_LOG_TRIVIAL(debug) << "received message from Physical printer page: " << evt.GetString();
+-    handle_message(into_u8(evt.GetString()));
+-}
+-
+ void PrinterWebViewPanel::handle_message(const std::string& message)
+ {
+ 
+@@ -1067,43 +684,12 @@
+ 
+ void PrinterWebViewPanel::send_api_key()
+ {
+-    if (!m_browser || m_api_key_sent)
+-        return;
+-    m_api_key_sent = true;
+-    wxString key = from_u8(m_api_key);
+-    wxString script = wxString::Format(R"(
+-    // Check if window.fetch exists before overriding
+-    if (window.originalFetch === undefined) {
+-        console.log('Patching fetch with API key');
+-        window.originalFetch = window.fetch;
+-        window.fetch = function(input, init = {}) {
+-            init.headers = init.headers || {};
+-            init.headers['X-Api-Key'] = sessionStorage.getItem('apiKey');
+-            console.log('Patched fetch', input, init);
+-            return window.originalFetch(input, init);
+-        };
+-    }
+-    sessionStorage.setItem('authType', 'ApiKey');
+-    sessionStorage.setItem('apiKey', '%s');
+-)",
+-    key);
+-    m_browser->RemoveAllUserScripts();
+-    BOOST_LOG_TRIVIAL(debug) << "RunScript " << script << "\n";
+-    m_browser->AddUserScript(script);
+-    m_browser->Reload();
+-    remove_webview_credentials(m_browser);
++    return;
+ }
+ 
+ void PrinterWebViewPanel::send_credentials()
+ {
+-    if (!m_browser || m_api_key_sent)
+-        return;
+-    m_browser->RemoveAllUserScripts();
+-    m_browser->AddUserScript("sessionStorage.removeItem('authType'); sessionStorage.removeItem('apiKey'); console.log('Session Storage cleared');");
+-    // reload would be done only if called from on_loaded
+-    //m_browser->Reload();
+-    m_api_key_sent = true;
+-    setup_webview_with_credentials(m_browser, m_usr, m_psk);
++    return;
+ }
+ 
+ void PrinterWebViewPanel::define_css()
+@@ -1197,51 +783,11 @@
+     }
+ }
+ 
+-void PrintablesWebViewPanel::on_navigation_request(wxWebViewEvent &evt)
+-{
+-    const wxString url = evt.GetURL();   
+-    if (url.StartsWith(m_default_url)) {
+-        m_reached_default_url = true;
+-        if (url == m_browser->GetCurrentURL()) {
+-            // we need to do this to redefine css when reload is hit
+-            m_styles_defined = false;
+-        }
+-    } else if (m_reached_default_url && url.StartsWith("http")) {
+-        BOOST_LOG_TRIVIAL(info) << evt.GetURL() <<  " does not start with default url. Vetoing.";
+-        evt.Veto();
+-    } else if (m_reached_default_url && evt.GetURL().Find(GUI::format_wxstr("/web/%1%.html", m_loading_html)) != wxNOT_FOUND) {
+-        // Do not allow back button to loading screen
+-        evt.Veto();
+-    }
+-}
+-
+ wxString PrintablesWebViewPanel::get_default_url() const
+ {
+     return GUI::from_u8(get_url_lang_theme(GUI::from_u8(Utils::ServiceConfig::instance().printables_url() + "/homepage")));
+ }
+ 
+-void PrintablesWebViewPanel::on_loaded(wxWebViewEvent& evt)
+-{
+-    if (evt.GetURL().Find(GUI::format_wxstr("/web/%1%.html", m_loading_html)) != wxNOT_FOUND && m_load_default_url) {
+-        m_load_default_url = false;
+-        load_default_url();
+-        return;
+-    }
+-    if (evt.GetURL().StartsWith(m_default_url)) {
+-        define_css();
+-    } else {
+-        m_styles_defined = false;
+-    }
+-#ifdef _WIN32
+-    // This is needed only once after add_request_authorization
+-    if (m_remove_request_auth) {
+-        m_remove_request_auth = false;
+-        remove_request_authorization(m_browser);
+-    }
+-#endif
+-    m_load_default_url_on_next_error = false;
+-}
+-
+ std::string PrintablesWebViewPanel::get_url_lang_theme(const wxString& url) const
+ {
+     // situations and reaction:
+@@ -1311,25 +857,7 @@
+ 
+ void PrintablesWebViewPanel::logout(const std::string& override_url/* = std::string()*/)
+ {
+-    if (!m_shown || !m_browser) {
+-        return;
+-    }
+-    BOOST_LOG_TRIVIAL(debug) << __FUNCTION__;
+-    hide_loading_overlay(); 
+-    m_styles_defined = false;
+-    delete_cookies(m_browser, Utils::ServiceConfig::instance().printables_url());
+-    m_browser->RunScript("localStorage.clear();");
+-
+-    std::string next_url = override_url.empty() 
+-        ? get_url_lang_theme(m_browser->GetCurrentURL()) 
+-        : get_url_lang_theme(from_u8(override_url));
+-#ifdef _WIN32
+-    load_url(GUI::from_u8(next_url));
+-#else
+-    // We cannot do simple reload here, it would keep the access token in the header
+-    load_request(m_browser, next_url, std::string());
+-#endif // 
+-       
++    return;
+ }
+ void PrintablesWebViewPanel::login(const std::string& access_token, const std::string& override_url/* = std::string()*/)
+ {
+@@ -1361,31 +889,7 @@
+ 
+ void PrintablesWebViewPanel::load_default_url()
+ {
+-    if (!m_browser) {
+-        return;
+-    }
+-    hide_loading_overlay();
+-    m_styles_defined = false;
+-    std::string actual_default_url = get_url_lang_theme(from_u8(Utils::ServiceConfig::instance().printables_url() + "/homepage"));
+-    const std::string access_token = wxGetApp().plater()->get_user_account()->get_access_token();
+-    // in case of opening printables logged out - delete cookies and localstorage to get rid of last login
+-    if (access_token.empty())  {
+-        BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << " logout";
+-        delete_cookies(m_browser, Utils::ServiceConfig::instance().printables_url());
+-        m_browser->AddUserScript("localStorage.clear();");
+-        load_url(actual_default_url);
+-        return;
+-    }
+-    BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << " login";
+-    
+-    // add token to first request
+-#ifdef _WIN32
+-    add_request_authorization(m_browser, m_default_url, access_token);
+-    m_remove_request_auth = true;
+-    load_url(GUI::from_u8(actual_default_url));
+-#else
+-    load_request(m_browser, actual_default_url, access_token);
+-#endif  
++    return;
+ }
+ 
+ void PrintablesWebViewPanel::send_refreshed_token(const std::string& access_token)
+@@ -1412,17 +916,8 @@
+     run_script(script);
+ }
+ 
+-void PrintablesWebViewPanel::on_script_message(wxWebViewEvent& evt)
+-{
+-    BOOST_LOG_TRIVIAL(debug) << "received message from Printables: " << evt.GetString();
+-    handle_message(into_u8(evt.GetString()));
+-}
+-
+ void PrintablesWebViewPanel::sys_color_changed()
+ {
+-    if (m_shown && m_browser) {
+-        load_url(GUI::from_u8(get_url_lang_theme(m_browser->GetCurrentURL())));
+-    }
+     WebViewPanel::sys_color_changed();
+ }
+ 
+@@ -1783,4 +1278,4 @@
+ }
+ 
+ 
+-} // namespace slic3r::GUI
+\ No newline at end of file
++} // namespace slic3r::GUI
+diff '--color=auto' -ru 01-virtual-overloads/src/slic3r/GUI/WebViewPanel.hpp 02-webkit-optional/src/slic3r/GUI/WebViewPanel.hpp
+--- 01-virtual-overloads/src/slic3r/GUI/WebViewPanel.hpp	2025-12-25 22:19:43.836298370 +0000
++++ 02-webkit-optional/src/slic3r/GUI/WebViewPanel.hpp	2025-12-26 04:18:09.244464970 +0000
+@@ -14,9 +14,6 @@
+ #include <wx/infobar.h>
+ #endif
+ 
+-class wxWebView;
+-class wxWebViewEvent;
+-
+ wxDECLARE_EVENT(EVT_PRINTABLES_CONNECT_PRINT, wxCommandEvent);
+ 
+ namespace Slic3r::GUI {
+@@ -39,10 +36,7 @@
+     void on_show(wxShowEvent& evt);
+     virtual void after_on_show(wxShowEvent& evt) {}
+ 
+-    virtual void on_script_message(wxWebViewEvent& evt);
+-
+     void on_idle(wxIdleEvent& evt);
+-    virtual void on_loaded(wxWebViewEvent& evt);
+     void on_url(wxCommandEvent& evt);
+     virtual void on_back_button(wxCommandEvent& evt);
+     virtual void on_forward_button(wxCommandEvent& evt);
+@@ -52,7 +46,6 @@
+     void on_view_source_request(wxCommandEvent& evt);
+     void on_view_text_request(wxCommandEvent& evt);
+     void on_tools_clicked(wxCommandEvent& evt);
+-    void on_error(wxWebViewEvent& evt);
+    
+     void run_script(const wxString& javascript);
+     void on_run_script_custom(wxCommandEvent& evt);
+@@ -63,7 +56,6 @@
+     void on_select_all(wxCommandEvent& evt);
+     void On_enable_context_menu(wxCommandEvent& evt);
+     void On_enable_dev_tools(wxCommandEvent& evt);
+-    virtual void on_navigation_request(wxWebViewEvent &evt);
+ 
+     virtual wxString get_default_url() const { return m_default_url; }
+     void set_default_url(const wxString& url) { m_default_url = url; }
+@@ -82,8 +74,6 @@
+     virtual void define_css();
+     virtual void on_page_will_load();
+ 
+-
+-    wxWebView* m_browser { nullptr };
+     bool m_load_default_url { false };
+ 
+     wxBoxSizer* topsizer;
+@@ -133,10 +123,8 @@
+ public:
+     ConnectWebViewPanel(wxWindow* parent);
+     ~ConnectWebViewPanel() override;
+-    void on_script_message(wxWebViewEvent& evt) override;
+     void logout();
+     void sys_color_changed() override;
+-    void on_navigation_request(wxWebViewEvent &evt) override;
+ protected:
+     void late_create() override;
+     void on_connect_action_request_login(const std::string &message_data) override;
+@@ -162,9 +150,6 @@
+ public:
+     PrinterWebViewPanel(wxWindow* parent, const wxString& default_url);
+     
+-    void on_loaded(wxWebViewEvent& evt) override;
+-    void on_script_message(wxWebViewEvent& evt) override;
+-    void on_navigation_request(wxWebViewEvent &evt) override;
+     void send_api_key();
+     void send_credentials();
+     void set_api_key(const std::string &key)
+@@ -197,10 +182,7 @@
+ {
+ public:
+     PrintablesWebViewPanel(wxWindow* parent);
+-    void on_navigation_request(wxWebViewEvent &evt) override;
+-    void on_loaded(wxWebViewEvent& evt) override;
+     void after_on_show(wxShowEvent& evt) override;
+-    void on_script_message(wxWebViewEvent& evt) override;
+     void sys_color_changed() override;
+ 
+     void logout(const std::string& override_url = std::string());
+@@ -250,4 +232,4 @@
+ };
+ } // namespace Slic3r::GUI
+ 
+-#endif /* slic3r_WebViewPanel_hpp_ */
+\ No newline at end of file
++#endif /* slic3r_WebViewPanel_hpp_ */
+Only in 01-virtual-overloads/src/slic3r/GUI: WebViewPlatformUtils.hpp
+Only in 01-virtual-overloads/src/slic3r/GUI: WebViewPlatformUtilsLinux.cpp
+Only in 01-virtual-overloads/src/slic3r/GUI: WebViewPlatformUtilsMac.mm
+Only in 01-virtual-overloads/src/slic3r/GUI: WebViewPlatformUtilsWin32.cpp
