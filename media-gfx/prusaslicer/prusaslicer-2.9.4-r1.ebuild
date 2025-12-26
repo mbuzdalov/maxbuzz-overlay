@@ -45,7 +45,7 @@ RDEPEND="
 	media-libs/libjpeg-turbo:=
 	media-libs/libpng:0=
 	media-libs/qhull:=
-	webkit? (net-libs/webkit-gtk:4.1)
+	webkit? ( net-libs/webkit-gtk:4.1 )
 	sci-libs/libigl
 	sci-libs/nlopt
 	sci-libs/opencascade:=
