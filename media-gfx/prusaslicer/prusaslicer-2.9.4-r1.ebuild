@@ -70,6 +70,7 @@ PATCHES=(
 	"${FILESDIR}/${PN}-2.8.1-fix-libsoup-double-linking.patch"
 	"${FILESDIR}/${PN}-2.8.1-boost-1.87.patch"
 	"${FILESDIR}/${PN}-2.9.2-boost-1.88.patch"
+	"${FILESDIR}/${PN}-2.9.4-boost-1.89.patch"
 	"${FILESDIR}/${PN}-2.9.4-virtual-overloads.patch"
 )
 
