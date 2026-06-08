@@ -38,8 +38,7 @@ RDEPEND="${PYTHON_DEPS}
 "
 DEPEND="${RDEPEND}"
 
-PATCHES=( "${FILESDIR}/libffado-2.4.9-fix-config-load-crash.patch"
-          "${FILESDIR}/libffado-2.5.0-libxmlpp5.patch" )
+PATCHES=( "${FILESDIR}/libffado-2.5.0-libxmlpp5.patch" )
 
 myescons() {
 	local myesconsargs=(
